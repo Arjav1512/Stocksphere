@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StockSphere — Trend Analysis</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- ══ HEADER ═══════════════════════════════════════════════════════════════ -->
+<header class="header">
+    <div class="header-inner">
+        <div class="logo">
+            <span class="logo-icon">◉</span>
+            <span class="logo-text">Stock<strong>Sphere</strong></span>
+        </div>
+        <div class="header-subtitle">AI-Powered Stock Trend Analysis</div>
+        <div class="status-badge" id="statusBadge">
+            <span class="status-dot"></span>
+            <span id="statusText">Connecting…</span>
+        </div>
+    </div>
+</header>
+
+<!-- ══ SEARCH BAR ════════════════════════════════════════════════════════════ -->
+<section class="search-section">
+    <div class="search-container">
+        <div class="search-label">ENTER STOCK SYMBOL</div>
+        <div class="search-row">
+            <div class="search-input-wrap">
+                <span class="search-icon">⌕</span>
+                <input type="text" id="symbolInput" class="search-input"
+                    placeholder="e.g. RELIANCE, TCS, AAPL, TSLA…"
+                    autocomplete="off" spellcheck="false" />
+            </div>
+            <button class="analyze-btn" id="analyzeBtn" onclick="analyzeStock()">
+                <span class="btn-text">ANALYZE</span>
+                <span class="btn-arrow">→</span>
+            </button>
+            <button class="backtest-btn" id="backtestBtn" onclick="runBacktest()" title="Run Backtest">
+                <span>⟳ BACKTEST</span>
+            </button>
+        </div>
+
+        <!-- Quick chips -->
+        <div class="chip-row">
+            <span class="chip-label">QUICK SELECT:</span>
+            <button class="chip" onclick="quickAnalyze('RELIANCE')">RELIANCE</button>
+            <button class="chip" onclick="quickAnalyze('TCS')">TCS</button>
+            <button class="chip" onclick="quickAnalyze('INFY')">INFY</button>
+            <button class="chip" onclick="quickAnalyze('AAPL')">AAPL</button>
+            <button class="chip" onclick="quickAnalyze('TSLA')">TSLA</button>
+            <button class="chip" onclick="quickAnalyze('NVDA')">NVDA</button>
+        </div>
+    </div>
+</section>
+
+<!-- ══ LOADING ═══════════════════════════════════════════════════════════════ -->
+<div class="loading-overlay" id="loadingOverlay" style="display:none">
+    <div class="loading-inner">
+        <div class="loader-ring"></div>
+        <div class="loading-text">ANALYZING <span id="loadingSymbol"></span></div>
+        <div class="loading-steps" id="loadingSteps">
+            <div class="load-step" id="step1">Fetching price data…</div>
+            <div class="load-step" id="step2">Computing SMA(20) &amp; SMA(50)…</div>
+            <div class="load-step" id="step3">Scanning news sentiment…</div>
+            <div class="load-step" id="step4">Fusing 5 signals…</div>
+        </div>
+    </div>
+</div>
+
+<!-- ══ RESULTS ════════════════════════════════════════════════════════════════ -->
+<main class="results" id="results" style="display:none">
+
+    <!-- ── Summary Banner ──────────────────────────────────────────────── -->
+    <div class="summary-banner" id="summaryBanner">
+        <div class="summary-inner">
+            <div class="summary-symbol" id="summarySymbol">—</div>
+            <div class="trend-pill" id="trendPill">NEUTRAL</div>
+        </div>
+        <div class="summary-text" id="summaryText">—</div>
+    </div>
+
+    <!-- ── Key Metrics Row ──────────────────────────────────────────────── -->
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-label">CURRENT PRICE</div>
+            <div class="metric-value" id="metricPrice">—</div>
+            <div class="metric-sub" id="metricPriceSub">—</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">SMA (20) / SMA (50)</div>
+            <div class="metric-value" id="metricSMA">—</div>
+            <div class="metric-sub" id="metricSMASub">—</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">SENTIMENT SCORE</div>
+            <div class="metric-value" id="metricSentimentScore">—</div>
+            <div class="metric-sub sentiment-tag" id="metricSentimentTag">—</div>
+        </div>
+        <div class="metric-card highlight-card" id="confidenceCard">
+            <div class="metric-label">CONFIDENCE</div>
+            <div class="metric-value large" id="metricConfidence">—</div>
+            <div class="metric-sub" id="metricTrend">—</div>
+        </div>
+    </div>
+
+    <!-- ── Chart Section ───────────────────────────────────────────────── -->
+    <div class="chart-section">
+        <div class="section-header">
+            <span class="section-title">PRICE HISTORY & SMA</span>
+            <div class="chart-legend">
+                <span class="legend-dot price-dot"></span><span>Price</span>
+                <span class="legend-dot sma20-dot"></span><span>SMA (20)</span>
+                <span class="legend-dot sma50-dot"></span><span>SMA (50)</span>
+            </div>
+        </div>
+        <div class="chart-wrap">
+            <canvas id="priceChart"></canvas>
+        </div>
+    </div>
+
+    <!-- ── Signal Votes + Sentiment ─────────────────────────────────────── -->
+    <div class="two-col">
+        <!-- Signal fusion panel -->
+        <div class="panel">
+            <div class="section-header">
+                <span class="section-title">SIGNAL FUSION (5 SIGNALS)</span>
+            </div>
+            <div class="signal-grid" id="signalGrid"><!-- JS fills --></div>
+            <div class="confidence-bar-wrap">
+                <div class="confidence-bar-label">
+                    <span>Bullish Pressure</span>
+                    <span id="confPct">—</span>
+                </div>
+                <div class="confidence-bar-track">
+                    <div class="confidence-bar-fill" id="confBar"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sentiment panel -->
+        <div class="panel">
+            <div class="section-header">
+                <span class="section-title">SENTIMENT ANALYSIS</span>
+                <span class="sentiment-pill" id="sentimentPill">—</span>
+            </div>
+            <div class="sentiment-meter-wrap">
+                <div class="sentiment-labels">
+                    <span>Bearish</span><span>Neutral</span><span>Bullish</span>
+                </div>
+                <!-- Normalised score [-1, +1] meter -->
+                <div class="sentiment-track">
+                    <div class="sentiment-needle" id="sentimentNeedle"></div>
+                </div>
+                <div class="sentiment-norm-label" id="sentimentNormLabel">Score: —</div>
+            </div>
+            <div class="news-list" id="newsList"><!-- JS fills --></div>
+        </div>
+    </div>
+
+    <!-- ── Backtest Results ─────────────────────────────────────────────── -->
+    <div class="backtest-panel" id="backtestPanel" style="display:none">
+        <div class="section-header">
+            <span class="section-title">⟳ BACKTEST RESULTS</span>
+            <span class="backtest-strategy" id="backtestStrategy">—</span>
+        </div>
+        <div class="backtest-stats">
+            <div class="bt-stat">
+                <div class="bt-label">TOTAL PREDICTIONS</div>
+                <div class="bt-value" id="btTotal">—</div>
+            </div>
+            <div class="bt-stat">
+                <div class="bt-label">CORRECT</div>
+                <div class="bt-value green" id="btCorrect">—</div>
+            </div>
+            <div class="bt-stat">
+                <div class="bt-label">ACCURACY</div>
+                <div class="bt-value accent" id="btAccuracy">—</div>
+            </div>
+        </div>
+        <div class="bt-note" id="btNote">—</div>
+    </div>
+
+</main>
+
+<!-- ══ EMPTY STATE ════════════════════════════════════════════════════════════ -->
+<div class="empty-state" id="emptyState">
+    <div class="empty-icon">◎</div>
+    <div class="empty-title">Enter a stock symbol to begin</div>
+    <div class="empty-sub">StockSphere fuses 5 signals — SMA, Crossover, Momentum, Volume &amp; Sentiment — into a unified trend forecast.</div>
+</div>
+
+<!-- ══ ERROR STATE ════════════════════════════════════════════════════════════ -->
+<div class="error-state" id="errorState" style="display:none">
+    <div class="error-icon">⚠</div>
+    <div class="error-title" id="errorTitle">Analysis Failed</div>
+    <div class="error-sub" id="errorSub">Could not connect to StockSphere backend.</div>
+    <button class="retry-btn" onclick="retryAnalysis()">RETRY</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
